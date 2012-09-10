@@ -1,10 +1,6 @@
-var connect = require('connect');
-var urlrouter = require('urlrouter');
 var ltx = require('ltx');
 var net = require('net');
 var xmpp = require('node-xmpp');
-
-var app = connect();
 
 var sessions = {};
 
@@ -150,14 +146,4 @@ function bosh() {
     };
 }
 
-var router = urlrouter(function(app) {
-    var boshHandler = bosh();
-    app.post('/http-bind/', boshHandler);
-    app.get('/http-bind/', boshHandler);
-});
-
-app.use(connect.logger({ immediate: true, format: 'dev' }));
-
-app.use(router);
-
-app.listen(5280);
+module.exports = bosh;

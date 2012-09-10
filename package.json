@@ -4,9 +4,11 @@
   "main": "bosh.js",
   "dependencies": {
     "ltx": "~0.2.2",
+    "node-xmpp": "~0.3.2"
+  },
+  "devDependencies": {
     "urlrouter": "~0.2.1",
     "connect": "~2.4.4",
-    "node-xmpp": "~0.3.2"
   },
   "license": "BSD",
   "description": "A BOSH middleware for Connect"
