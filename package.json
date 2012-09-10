@@ -1,0 +1,16 @@
+{
+  "name": "chat-server",
+  "version": "0.0.0",
+  "main": "chat-server.js",
+  "dependencies": {
+    "ltx": "~0.2.2",
+    "urlrouter": "~0.2.1",
+    "connect": "~2.4.4",
+    "node-xmpp": "~0.3.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "BSD",
+  "description": "A simple web chat server using XMPP"
+}
