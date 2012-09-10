@@ -11,5 +11,5 @@
     "connect": "~2.4.4",
   },
   "license": "BSD",
-  "description": "A BOSH middleware for Connect"
+  "description": "A simple BOSH middleware"
 }
