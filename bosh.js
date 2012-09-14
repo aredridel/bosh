@@ -62,9 +62,7 @@ function bosh() {
                     stat("XMPP.");
                 });
 
-                xc.on('error', function(err) {
-                    stat("XMPP!", err);
-                });
+                xc.on('error', handleError);
 
                 stat("XMPP=", "connected");
 
@@ -78,7 +76,19 @@ function bosh() {
                 }));
             });
 
+            c.on('error', handleError);
+
             stat("Starting session", sid);
+        }
+
+        function handleError(err) {
+            stat("XMPP!", err);
+            send(new ltx.Element('body', {
+                xmlns: 'http://jabber.org/protocol/httpbind', 
+                condition: 'remote-connection-failed',
+                type: 'terminate',
+                "xmlns:stream": 'http://etherx.jabber.org/streams'
+            }));
         }
 
         function queue(stanza) {
