@@ -2,11 +2,10 @@ var ltx = require('ltx');
 var net = require('net');
 var xmpp = require('node-xmpp');
 
-var sessions = {};
-
-var currentID = 0;
-
 function bosh() {
+    var sessions = {};
+    var currentID = 0;
+
     return function bosh(req, res) {
         var tree;
         var session;
@@ -101,9 +100,13 @@ function bosh() {
 
                 stat('HTTP<', body);
 
-                res.setHeader('Content-Type', 'text/xml; charset=utf-8');
                 var responseText = body.toString();
-                res.setHeader('Content-Length', Buffer.byteLength(responseText, 'utf-8'));
+
+                res.writeHeader(200, 'OK', {
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'Content-Length': Buffer.byteLength(responseText, 'utf-8')
+                });
+
                 res.end(responseText);
             }
         }
@@ -119,7 +122,8 @@ function bosh() {
 
         parser.on('error', function(err) {
             res.statusCode = 400;
-            res.end(err);
+            console.log('error', err);
+            res.end(err ? err.toString() : '');
         });
 
         parser.on('tree', function(t) {
@@ -137,6 +141,7 @@ function bosh() {
             } else {
                 console.log("No session");
             }
+
             if (obj) {
                 console.log(context, obj);
             } else {

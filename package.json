@@ -6,10 +6,6 @@
     "ltx": "~0.2.2",
     "node-xmpp": "~0.3.2"
   },
-  "devDependencies": {
-    "urlrouter": "~0.2.1",
-    "connect": "~2.4.4"
-  },
   "license": "BSD",
   "description": "A simple BOSH middleware"
 }
