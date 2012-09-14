@@ -8,6 +8,14 @@ be used as a connection handler function for the raw node HTTP server.
 Example
 =======
 
+    var http = require('http');
+    var bosh = require('./bosh.js');
+    http.createServer(bosh()).listen(5280);
+
+
+Example as Connect middleware
+=============================
+
     var connect = require('connect');
     var urlrouter = require('urlrouter');
 
