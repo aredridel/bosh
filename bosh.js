@@ -2,11 +2,11 @@
 var ltx = require('ltx');
 var net = require('net');
 var xmpp = require('node-xmpp');
+var idgen = require('idgen');
 
 function bosh(options) {
     "use strict";
     var sessions = {};
-    var currentID = 0;
 
     if (!options) options = {};
 
@@ -25,7 +25,7 @@ function bosh(options) {
             return new Session(options);
         }
 
-        this.sid = currentID++;
+        this.sid = idgen();
 
         sessions[this.sid] = this;
 
