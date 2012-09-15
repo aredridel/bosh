@@ -37,7 +37,6 @@ function bosh(options) {
             xc.on('rawStanza', function(stanza) {
                 debug("XMPP<", stanza.toString());
                 session.queue(stanza);
-                session.send();
             });
             
             xc.on('close', function() {
