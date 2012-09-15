@@ -25,9 +25,7 @@ function bosh(options) {
 
         sessions[this.sid] = this;
 
-        this.hold = options.hold;
-        this.wait = options.wait;
-        this.ver = options.ver;
+        this.options = options;
         this.waiting = [];
         this._queue = [];
 
@@ -76,7 +74,7 @@ function bosh(options) {
         if (sid) {
             return sessions[sid];
         } else {
-            return new Session({hold: tree.attrs.hold, wait: parseInt(tree.attrs.wait, 10), ver: tree.attrs.ver, to: tree.attrs.to});
+            return new Session({hold: parseInt(tree.attrs.hold, 10), wait: parseInt(tree.attrs.wait, 10), ver: tree.attrs.ver, to: tree.attrs.to});
         }
     };
 
@@ -113,7 +111,7 @@ function bosh(options) {
                 clearTimeout(this.timeout);
             }
 
-            this.timeout = setTimeout(this.send.bind(this), this.wait * 1000);
+            this.timeout = setTimeout(this.send.bind(this), this.options.wait * 1000);
         },
 
         queue: function queue(stanza) {
