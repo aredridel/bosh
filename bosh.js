@@ -1,10 +1,142 @@
+/*jshint node:true */
 var ltx = require('ltx');
 var net = require('net');
 var xmpp = require('node-xmpp');
 
-function bosh() {
+function bosh(options) {
+    "use strict";
     var sessions = {};
     var currentID = 0;
+
+    if (!options) options = {};
+
+    function debug (context, obj) {
+        if (options.debug) {
+            if (obj) {
+                console.log(context, obj);
+            } else {
+                console.log(context);
+            }
+        }
+    }
+
+    function Session(options) {
+        if (!this instanceof Session) {
+            return new Session(options);
+        }
+
+        this.sid = currentID++;
+
+        sessions[this.sid] = this;
+
+        this.hold = options.hold;
+        this.wait = options.wait;
+        this.ver = options.ver;
+        this.waiting = [];
+        this._queue = [];
+
+        var session = this;
+
+        var c = net.connect({port: 5222, host: options.to}, function() {
+            var xc = session.connection = new xmpp.Connection.Connection(c);
+
+            xc.streamTo = options.to;
+
+            xc.on('rawStanza', function(stanza) {
+                debug("XMPP<", stanza.toString());
+                session.queue(stanza);
+                session.send();
+            });
+            
+            xc.on('close', function() {
+                debug("XMPP.");
+                session.error('closed');
+            });
+
+            xc.on('error', function(err) {
+                session.error(err);
+            });
+
+            debug("XMPP=", "connected");
+
+            xc.startStream();
+            xc.startParser();
+
+            session.send(new ltx.Element('body', {
+                xmlns: 'http://jabber.org/protocol/httpbind', sid: session.sid, wait: 60, hold: 1
+            }));
+        });
+
+        c.on('error', function(err) {
+            session.error(err);
+        });
+
+        debug("Starting session", session.sid);
+    }
+
+    Session.forTree = function getSession(tree) {
+        var sid = tree.attrs.sid;
+
+        if (sid) {
+            return sessions[sid];
+        } else {
+            return new Session({hold: tree.attrs.hold, wait: parseInt(tree.attrs.wait, 10), ver: tree.attrs.ver, to: tree.attrs.to});
+        }
+    };
+
+    Session.prototype = {
+        send: function send(body) {
+            var res = this.waiting.shift();
+            if (res) {
+                if (!body) {
+                    body = new ltx.Element('body', { xmlns: 'http://jabber.org/protocol/httpbind' });
+                }
+                body.children = this._queue;
+                for (var k in body.children) {
+                    body.children[k].parent = body;
+                }
+
+                this._queue = [];
+
+                var responseText = body.toString();
+
+                debug('HTTP<', responseText);
+
+                res.writeHeader(200, 'OK', {
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'Content-Length': Buffer.byteLength(responseText, 'utf-8')
+                });
+
+                res.end(responseText);
+            }
+            this.rescheduleTimeout();
+        },
+
+        rescheduleTimeout: function rescheduleTimeout() {
+            if (this.timeout) {
+                clearTimeout(this.timeout);
+            }
+
+            this.timeout = setTimeout(this.send.bind(this), this.wait * 1000);
+        },
+
+        queue: function queue(stanza) {
+            this._queue.push(stanza);
+            var session = this;
+            process.nextTick(this.send.bind(this));
+        },
+
+        error: function die(err) {
+            debug("XMPP!", err);
+            this.send(new ltx.Element('body', {
+                xmlns: 'http://jabber.org/protocol/httpbind', 
+                condition: 'remote-connection-failed',
+                type: 'terminate',
+                "xmlns:stream": 'http://etherx.jabber.org/streams'
+            }));
+            delete sessions[this.sid];
+        }
+    };
 
     return function bosh(req, res) {
         var tree;
@@ -17,114 +149,21 @@ function bosh() {
             return res.end("<!doctype html><style>body { width: 300px; margin: 50px auto; } </style> <h1>That worked, but ...</h1><p>This is a BOSH server endpoint. Connecting with a web browser won't accomplish much. You'll need a Jabber server to connect to, and then direct your Jabber client to this endpoint.</p>");
         }
 
-        function error(message) {
-            stat("HTTP!", message);
-            res.statusCode = 400;
-            res.end(message);
-        }
-
         function handleFrame() {
-            stat('HTTP>', tree);
-            if (!tree.is('body')) return error('opening tag should be body');
+            debug('HTTP>', tree.toString());
+            if (!tree.is('body')) return error(res, 'opening tag should be body');
 
-            if (!tree.attrs.sid) {
-                startSession();
-            } else {
-                if (!session) return error('no such session');
-                passFrame();
+            var session = Session.forTree(tree);
+            if (!session) return error(res, 'no such session');
 
-                if (session.queue.length) {
-                    send();
-                }
-            }
-        }
+            session.waiting.push(res);
 
-        function passFrame() {
             var stanza;
             for (var i in tree.children) {
                 stanza = tree.children[i];
                 stanza.parent = null;
-                stat("XMPP>", stanza);
+                debug("XMPP>", stanza.toString());
                 session.connection.send(stanza);
-            }
-        }
-
-        function startSession() {
-            var sid = currentID++;
-
-            session = sessions[sid] = { hold: tree.attrs.hold, wait: tree.attrs.wait, ver: tree.attrs.ver, waiting: [res], queue: [] };
-
-            var c = net.connect({port: 5222, host: tree.attrs.to || 'localhost'}, function() {
-                var xc = sessions[sid].connection = new xmpp.Connection.Connection(c);
-
-                xc.streamTo = tree.to || 'localhost';
-
-                xc.on('rawStanza', function(stanza) {
-                    stat("XMPP<", stanza);
-                    queue(stanza);
-                    send();
-                });
-                
-                xc.on('close', function() {
-                    stat("XMPP.");
-                });
-
-                xc.on('error', handleError);
-
-                stat("XMPP=", "connected");
-
-                xc.startStream();
-                xc.startParser();
-
-                passFrame(tree);
-
-                send(new ltx.Element('body', {
-                    xmlns: 'http://jabber.org/protocol/httpbind', sid: sid, wait: 60, hold: 1
-                }));
-            });
-
-            c.on('error', handleError);
-
-            stat("Starting session", sid);
-        }
-
-        function handleError(err) {
-            stat("XMPP!", err);
-            send(new ltx.Element('body', {
-                xmlns: 'http://jabber.org/protocol/httpbind', 
-                condition: 'remote-connection-failed',
-                type: 'terminate',
-                "xmlns:stream": 'http://etherx.jabber.org/streams'
-            }));
-        }
-
-        function queue(stanza) {
-            session.queue.push(stanza);
-        }
-
-        function send(body) {
-            var res = session.waiting.shift();
-            if (res) {
-                if (!body) {
-                    body = new ltx.Element('body', { xmlns: 'http://jabber.org/protocol/httpbind' });
-                }
-                body.children = session.queue;
-                for (var k in body.children) {
-                    body.children[k].parent = body;
-                }
-
-                session.queue = [];
-
-                stat('HTTP<', body);
-
-                var responseText = body.toString();
-
-                res.writeHeader(200, 'OK', {
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'Content-Length': Buffer.byteLength(responseText, 'utf-8')
-                });
-
-                res.end(responseText);
             }
         }
 
@@ -138,9 +177,7 @@ function bosh() {
         });
 
         parser.on('error', function(err) {
-            res.statusCode = 400;
-            console.log('error', err);
-            res.end(err ? err.toString() : '');
+            return error(res, err);
         });
 
         parser.on('tree', function(t) {
@@ -152,17 +189,15 @@ function bosh() {
             handleFrame();
         });
 
-        function stat(context, obj) {
-            if (session) {
-                console.log({ queue: session.queue.length, waiting: session.waiting.length });
-            } else {
-                console.log("No session");
-            }
+        function error(res, message) {
+            debug("HTTP!", message);
 
-            if (obj) {
-                console.log(context, obj);
+            res.statusCode = 400;
+            var type = /^text\/xml/;
+            if (type.test(req.headers['Content-Type']) || type.test(req.headers['Content-Encoding'])) {
+                res.end("XML");
             } else {
-                console.log(context);
+                res.end(message);
             }
         }
     };
