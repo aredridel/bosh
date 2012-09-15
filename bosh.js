@@ -54,7 +54,7 @@ function bosh() {
 
             session = sessions[sid] = { hold: tree.attrs.hold, wait: tree.attrs.wait, ver: tree.attrs.ver, waiting: [res], queue: [] };
 
-            var c = net.connect({port: 5222, host: tree.to || 'localhost'}, function() {
+            var c = net.connect({port: 5222, host: tree.attrs.to || 'localhost'}, function() {
                 var xc = sessions[sid].connection = new xmpp.Connection.Connection(c);
 
                 xc.streamTo = tree.to || 'localhost';
