@@ -10,13 +10,9 @@ function bosh(options) {
 
     if (!options) options = {};
 
-    function debug (context, obj) {
+    function debug () {
         if (options.debug) {
-            if (obj) {
-                console.log(context, obj);
-            } else {
-                console.log(context);
-            }
+            console.log.apply(console, arguments);
         }
     }
 
@@ -172,9 +168,7 @@ function bosh(options) {
             parser.write(data);
         });
 
-        req.on('end', function() {
-            parser.end();
-        });
+        req.on('end', parser.end.bind(parser));
 
         parser.on('error', function(err) {
             return error(res, err);
