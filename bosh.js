@@ -11,9 +11,7 @@ function bosh(options) {
     if (!options) options = {};
 
     function debug () {
-        if (options.debug) {
-            console.log.apply(console, arguments);
-        }
+        if (options.debug) console.log.apply(console, arguments);
     }
 
     function Session(options) {
