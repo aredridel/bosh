@@ -10,6 +10,13 @@ function bosh() {
         var tree;
         var session;
 
+        if (req.method != 'POST') {
+            res.writeHead(400, 'OK, But...', {
+                "Content-Type": "text/html"
+            });
+            return res.end("<!doctype html><style>body { width: 300px; margin: 50px auto; } </style> <h1>That worked, but ...</h1><p>This is a BOSH server endpoint. Connecting with a web browser won't accomplish much. You'll need a Jabber server to connect to, and then direct your Jabber client to this endpoint.</p>");
+        }
+
         function error(message) {
             stat("HTTP!", message);
             res.statusCode = 400;
