@@ -101,6 +101,11 @@ function bosh(options) {
 
                 res.end(responseText);
             }
+
+            if (this.waiting.length > this.options.hold) {
+                this.send();
+            }
+
             this.rescheduleTimeout();
         },
 
