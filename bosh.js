@@ -35,13 +35,13 @@ function bosh(options) {
             xc.streamTo = options.to;
 
             xc.on('rawStanza', function(stanza) {
-                debug("XMPP<", stanza.toString());
+                debug("\tXMPP<", stanza.toString());
                 session.queue(stanza);
             });
             
             xc.on('close', function() {
                 debug("XMPP.");
-                session.error('closed');
+                session.terminate();
             });
 
             xc.on('error', function(err) {
@@ -77,12 +77,15 @@ function bosh(options) {
 
     Session.prototype = {
         send: function send(body) {
+            delete this.sendScheduled;
             var res = this.waiting.shift();
             if (res) {
                 if (!body) {
                     body = new ltx.Element('body', { xmlns: 'http://jabber.org/protocol/httpbind' });
                 }
+
                 body.children = this._queue;
+
                 for (var k in body.children) {
                     body.children[k].parent = body;
                 }
@@ -99,6 +102,8 @@ function bosh(options) {
                 });
 
                 res.end(responseText);
+            } else {
+                debug("HTTP:", "No connection available, leaving queued: ", this._queue.length);
             }
 
             if (this.waiting.length > this.options.hold) {
@@ -119,11 +124,14 @@ function bosh(options) {
         queue: function queue(stanza) {
             this._queue.push(stanza);
             var session = this;
-            process.nextTick(this.send.bind(this));
+            if (!this.sendScheduled) {
+                process.nextTick(this.send.bind(this));
+                this.sendScheduled = true;
+            }
         },
 
         error: function die(err) {
-            debug("XMPP!", err);
+            debug("XMPP!", err.toString());
             this.send(new ltx.Element('body', {
                 xmlns: 'http://jabber.org/protocol/httpbind', 
                 condition: 'remote-connection-failed',
@@ -131,7 +139,18 @@ function bosh(options) {
                 "xmlns:stream": 'http://etherx.jabber.org/streams'
             }));
             delete sessions[this.sid];
+        },
+
+        terminate: function terminate() {
+            debug("HTTP."); 
+            this.send(new ltx.Element('body', {
+                xmlns: 'http://jabber.org/protocol/httpbind', 
+                type: 'terminate',
+                "xmlns:stream": 'http://etherx.jabber.org/streams'
+            }));
+            delete sessions[this.sid];
         }
+
     };
 
     return function bosh(req, res) {
@@ -145,7 +164,7 @@ function bosh(options) {
             return res.end("<!doctype html><style>body { width: 300px; margin: 50px auto; } </style> <h1>That worked, but ...</h1><p>This is a BOSH server endpoint. Connecting with a web browser won't accomplish much. You'll need a Jabber server to connect to, and then direct your Jabber client to this endpoint.</p>");
         }
 
-        function handleFrame() {
+        function handleFrame(tree) {
             debug('HTTP>', tree.toString());
             if (!tree.is('body')) return error(res, 'opening tag should be body');
 
@@ -158,9 +177,11 @@ function bosh(options) {
             for (var i in tree.children) {
                 stanza = tree.children[i];
                 stanza.parent = null;
-                debug("XMPP>", stanza.toString());
+                debug("\tXMPP>", stanza.toString());
                 session.connection.send(stanza);
             }
+
+            if (session._queue.length) session.send();
         }
 
         var parser = new ltx.Parser();
@@ -174,14 +195,7 @@ function bosh(options) {
             return error(res, err);
         });
 
-        parser.on('tree', function(t) {
-            tree = t;
-            session = sessions[tree.attrs.sid];
-            if (session) {
-                session.waiting.push(res);
-            }
-            handleFrame();
-        });
+        parser.on('tree', handleFrame);
 
         function error(res, message) {
             debug("HTTP!", message);
