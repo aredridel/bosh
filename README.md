@@ -41,3 +41,10 @@ Caveats
 It implements just enough of the connection manager protocol at this point to
 pass through an XMPP session. Correctness is left for a later pass through the
 code. There is little to no error handling.
+
+There's still a glitch with libpurple clients dropping connections and
+replacing them.
+
+No multiple stream support yet.
+
+No repeatable reads yet.
