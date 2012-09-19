@@ -31,6 +31,8 @@ function bosh(options) {
 
         var c = net.connect({port: 5222, host: options.to}, function() {
             var xc = session.connection = new xmpp.Connection.Connection(c);
+            xc.xmlns[''] = 'jabber:client';
+            xc.xmppVersion = "1.0";
 
             xc.streamTo = options.to;
 
@@ -45,6 +47,7 @@ function bosh(options) {
             });
 
             xc.on('error', function(err) {
+                debug("XMPP!");
                 session.error(err);
             });
 
@@ -53,8 +56,13 @@ function bosh(options) {
             xc.startStream();
             xc.startParser();
 
+            //session.queue(new ltx.Element('stream:features', {'xmlns:stream': 'http://etherx.jabber.org/streams'}).c('mechanisms', {xmlns: 'urn:ietf:params:xml:ns:xmpp-sasl'}).c('mechanism').t('PLAIN').up());
+            //session.queue(new ltx.Element('stream:features', {'xmlns:stream': 'http://etherx.jabber.org/streams'}).c('bind', {xmlns: 'urn:ietf:params:xml:ns:xmpp-bind'}));
             session.send(new ltx.Element('body', {
-                xmlns: 'http://jabber.org/protocol/httpbind', sid: session.sid, wait: 60, hold: 1
+                xmlns: 'http://jabber.org/protocol/httpbind',
+                sid: session.sid,
+                wait: 60,
+                hold: 1
             }));
         });
 
@@ -122,7 +130,7 @@ function bosh(options) {
         },
 
         queue: function queue(stanza) {
-            this._queue.push(stanza);
+            this._queue.push(stanza.root());
             var session = this;
             if (!this.sendScheduled) {
                 process.nextTick(this.send.bind(this));
@@ -200,11 +208,11 @@ function bosh(options) {
         function error(res, message) {
             debug("HTTP!", message);
 
-            res.statusCode = 400;
             var type = /^text\/xml/;
             if (type.test(req.headers['Content-Type']) || type.test(req.headers['Content-Encoding'])) {
                 res.end("XML");
             } else {
+                res.statusCode = 400;
                 res.end(message);
             }
         }
