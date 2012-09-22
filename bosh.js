@@ -60,6 +60,8 @@ function bosh(options) {
             //session.queue(new ltx.Element('stream:features', {'xmlns:stream': 'http://etherx.jabber.org/streams'}).c('bind', {xmlns: 'urn:ietf:params:xml:ns:xmpp-bind'}));
             session.send(new ltx.Element('body', {
                 xmlns: 'http://jabber.org/protocol/httpbind',
+                "xmlns:xmpp": "urn:xmpp:xbosh",
+                "xmpp:restartlogic": "true",
                 sid: session.sid,
                 wait: 60,
                 hold: 1
@@ -180,6 +182,13 @@ function bosh(options) {
             if (!session) return error(res, 'no such session');
 
             session.waiting.push(res);
+
+            if (tree.attrs['xmpp:restart'] == 'true') {
+                console.log("XMPP ", "restarting");
+                session.connection.stopParser();
+                session.connection.startParser();
+                session.connection.startStream();
+            }
 
             var stanza;
             for (var i in tree.children) {
