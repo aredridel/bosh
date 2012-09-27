@@ -80,8 +80,10 @@ function bosh(options) {
 
         if (sid) {
             return sessions[sid];
-        } else {
+        } else if (tree.attrs.to) {
             return new Session({hold: parseInt(tree.attrs.hold, 10), wait: parseInt(tree.attrs.wait, 10), ver: tree.attrs.ver, to: tree.attrs.to});
+        } else {
+            return false;
         }
     };
 
@@ -179,7 +181,7 @@ function bosh(options) {
             if (!tree.is('body')) return error(res, 'opening tag should be body');
 
             var session = Session.forTree(tree);
-            if (!session) return error(res, 'no such session');
+            if (!session) return error(res, 'item-not-found');
 
             session.waiting.push(res);
 
@@ -209,7 +211,7 @@ function bosh(options) {
         req.on('end', parser.end.bind(parser));
 
         parser.on('error', function(err) {
-            return error(res, err);
+            return error(res, 'not-well-formed');
         });
 
         parser.on('tree', handleFrame);
@@ -217,9 +219,15 @@ function bosh(options) {
         function error(res, message) {
             debug("HTTP!", message);
 
-            var type = /^text\/xml/;
-            if (type.test(req.headers['Content-Type']) || type.test(req.headers['Content-Encoding'])) {
-                res.end("XML");
+            var type = /^(text|application)\/xml/;
+            if (type.test(req.headers['content-type']) || type.test(req.headers['content-encoding'])) {
+                var body = new ltx.Element('body', {
+                    type: 'terminate', 
+                    xmlns: 'http://jabber.org/protocol/httpbind',
+                    condition: message
+                });
+                console.log("HTTP<", body.toString());
+                res.end(body.toString());
             } else {
                 res.statusCode = 400;
                 res.end(message);
