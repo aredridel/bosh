@@ -115,7 +115,9 @@ function bosh(options) {
 
                 res.end(responseText);
             } else {
-                debug("HTTP:", "No connection available, leaving queued: ", this._queue.length);
+                if (this._queue.length) {
+                    debug("HTTP:", "Leaving " + this._queue.length + " messages queued");
+                }
             }
 
             if (this.waiting.length > this.options.hold) {
