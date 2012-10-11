@@ -120,11 +120,17 @@ function bosh(options) {
                 }
             }
 
-            if (this.waiting.length > this.options.hold) {
-                this.send();
-            }
-
             this.rescheduleTimeout();
+        },
+
+        dequeue: function() {
+            if (this._queue.length) {
+               this.send();
+            }
+           
+            while(this.waiting.length > this.options.hold) {
+               this.send();
+            } 
         },
 
         rescheduleTimeout: function rescheduleTimeout() {
@@ -202,7 +208,7 @@ function bosh(options) {
                 session.connection.send(stanza);
             }
 
-            if (session._queue.length) session.send();
+            session.dequeue();
         }
 
         var parser = new ltx.Parser();
