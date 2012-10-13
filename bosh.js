@@ -114,11 +114,9 @@ function bosh(options) {
                 });
 
                 res.end(responseText);
-            } else {
-                if (this._queue.length) {
-                    debug("HTTP:", "Leaving " + this._queue.length + " messages queued");
-                }
             }
+
+            debug("HTTP:", "{" + this.sid + "} " + this._queue.length + " messages remain queued");
 
             this.rescheduleTimeout();
         },
