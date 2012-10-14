@@ -115,7 +115,7 @@ function bosh(options) {
 
                 res.end(responseText);
 
-                if (!this.waiting.length) {
+                if (!this.waiting.length && this.connection.socket) {
                     this.rescheduleRecvTimeout();
                 }
 
