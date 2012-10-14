@@ -81,7 +81,7 @@ function bosh(options) {
         if (sid) {
             return sessions[sid];
         } else if (tree.attrs.to) {
-            return new Session({hold: parseInt(tree.attrs.hold, 10), wait: parseInt(tree.attrs.wait, 10), ver: tree.attrs.ver, to: tree.attrs.to});
+            return new Session({hold: parseInt(tree.attrs.hold, 10), wait: parseInt(tree.attrs.wait, 10), ver: tree.attrs.ver, to: tree.attrs.to, inactivity: 30});
         } else {
             return false;
         }
@@ -114,11 +114,16 @@ function bosh(options) {
                 });
 
                 res.end(responseText);
+
+                this.rescheduleSendTimeout();
             }
 
             debug("HTTP:", "{" + this.sid + "} " + this._queue.length + " messages remain queued");
+        },
 
-            this.rescheduleTimeout();
+        addWaiting: function addWaiting(res) {
+            this.waiting.push(res);
+            this.rescheduleRecvTimeout();
         },
 
         dequeue: function() {
@@ -131,12 +136,25 @@ function bosh(options) {
             } 
         },
 
-        rescheduleTimeout: function rescheduleTimeout() {
-            if (this.timeout) {
-                clearTimeout(this.timeout);
+        rescheduleSendTimeout: function rescheduleSendTimeout() {
+            if (this.sendTimeout) {
+                clearTimeout(this.sendTimeout);
             }
 
-            this.timeout = setTimeout(this.send.bind(this), this.options.wait * 1000);
+            this.sendTimeout = setTimeout(this.send.bind(this), this.options.wait * 1000);
+        },
+
+        rescheduleRecvTimeout: function rescheduleRecvTimeout() {
+            if (this.recvTimeout) {
+                clearTimeout(this.recvTimeout);
+            }
+
+            this.recvTimeout = setTimeout(this.timeout.bind(this), this.options.inactivity * 1000);
+        },
+
+        timeout: function timeout() {
+            debug("HTTP*", "timeout");
+            this.connection.end();
         },
 
         queue: function queue(stanza) {
@@ -189,7 +207,7 @@ function bosh(options) {
             var session = Session.forTree(tree);
             if (!session) return error(res, 'item-not-found');
 
-            session.waiting.push(res);
+            session.addWaiting(res);
 
             if (tree.attrs['xmpp:restart'] == 'true') {
                 console.log("XMPP ", "restarting");
