@@ -115,6 +115,10 @@ function bosh(options) {
 
                 res.end(responseText);
 
+                if (!this.waiting.length) {
+                    this.rescheduleRecvTimeout();
+                }
+
                 this.rescheduleSendTimeout();
             }
 
@@ -123,7 +127,11 @@ function bosh(options) {
 
         addWaiting: function addWaiting(res) {
             this.waiting.push(res);
-            this.rescheduleRecvTimeout();
+
+            if (this.recvTimeout) {
+                clearTimeout(this.recvTimeout);
+            }
+
         },
 
         dequeue: function() {
