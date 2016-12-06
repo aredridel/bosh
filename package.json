@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "main": "bosh.js",
   "dependencies": {
-    "ltx": "~2.5.0",
+    "ltx": "~2.6.0",
     "node-xmpp": "~1.0.2",
     "idgen": "~2.0.2"
   },
