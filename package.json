@@ -4,7 +4,7 @@
   "main": "bosh.js",
   "dependencies": {
     "ltx": "~2.5.0",
-    "node-xmpp": "~1.0.2",
+    "node-xmpp": "~1.0.8",
     "idgen": "~2.0.2"
   },
   "license": "BSD",
